@@ -21,13 +21,8 @@
             mem_free_mb: "{{ ansible_memory_mb.real.free }}"
 
         - name: Get Timezone info
-          shell: timedatectl | grep "Time zone" | awk '{print $3}'
+          shell: timedatectl
           register: timezone_info
-          changed_when: false
-
-        - name: Get NTP Server info
-          shell: ntpq -p | grep -v Name
-          register: ntp_info
           changed_when: false
 
         - name: Get list of running services
@@ -91,6 +86,7 @@
     - name: Generate report
       template:
         src: templates/report.html.j2
-        dest: "/tmp/report_{{ inventory_hostname }}.html"
+        dest: "/tmp/report_{{ inventory_hostname }}_{{ ansible_date_time.iso8601 }}.html"
         mode: "0600"
       delegate_to: localhost
+      become: false

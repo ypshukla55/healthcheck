@@ -119,19 +119,7 @@
                 <td><strong>Timezone</strong></td>
                 <td>
                     {% if timezone_info is defined and timezone_info.stdout %}
-                        {{ timezone_info.stdout }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </td>
-            </tr>
-            <tr>
-                <td><strong>NTP Servers</strong></td>
-                <td>
-                    {% if ntp_info is defined and ntp_info.stdout %}
-                        <div class="scrollable">
-                            <pre>{{ ntp_info.stdout }}</pre>
-                        </div>
+                        <pre>{{ timezone_info.stdout }}</pre>
                     {% else %}
                         N/A
                     {% endif %}
