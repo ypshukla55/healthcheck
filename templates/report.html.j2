@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Healthcheck Report - {{ inventory_hostname }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #444;
+            margin-top: 30px;
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-left: 4px solid #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .status-positive {
+            color: #28a745; /* Green */
+            font-weight: bold;
+        }
+        .status-negative {
+            color: #dc3545; /* Red */
+            font-weight: bold;
+        }
+        .status-warning {
+            color: #ffc107; /* Yellow */
+            font-weight: bold;
+        }
+        .scrollable {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 5px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>System Healthcheck Report - {{ ansible_hostname }}</h1>
+    <p><strong>Generated on:</strong> {{ ansible_date_time.iso8601 }}</p>
+    <p><strong>Hostname:</strong> {{ ansible_hostname }}</p>
+    <p><strong>IP Address:</strong> {{ ansible_all_ipv4_addresses | default('N/A') }}</p>
+
+    <h2>System Metrics</h2>
+    <table>
+        <tbody>
+            <tr>
+                <td><strong>Disk Usage (%)</strong></td>
+                <td>
+                    {% if disk_used is defined and disk_used.stdout %}
+                        <span class="{% if disk_used.stdout | int >= disk_threshold %}status-negative{% else %}status-positive{% endif %}">
+                            {{ disk_used.stdout }}%
+                        </span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Free Memory</strong></td>
+                <td>
+                    {% if mem_free_mb is defined %}
+                        <span class="{% if mem_free_mb | int <= mem_threshold %}status-negative{% else %}status-positive{% endif %}">
+                            {{ mem_free_mb }} MB
+                        </span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Load Average</strong></td>
+                <td>
+                    {% if ansible_loadavg is defined and ansible_loadavg['1m'] is defined %}
+                        <span class="{% if ansible_loadavg['1m'] | float >= load_threshold %}status-negative{% else %}status-positive{% endif %}">
+                            {{ ansible_loadavg['1m'] }}
+                        </span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Timezone</strong></td>
+                <td>
+                    {% if timezone_info is defined and timezone_info.stdout %}
+                        {{ timezone_info.stdout }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>NTP Servers</strong></td>
+                <td>
+                    {% if ntp_info is defined and ntp_info.stdout %}
+                        <div class="scrollable">
+                            <pre>{{ ntp_info.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Running Services</strong></td>
+                <td>
+                    {% if running_services is defined and running_services.stdout %}
+                        <div class="scrollable">
+                            <pre><span class="status-positive">{{ running_services.stdout }}</span></pre>
+                        </div>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td SIX>
+            </tr>
+            <tr>
+                <td><strong>Failed Services</strong></td>
+                <td>
+                    {% if failed_services is defined and failed_services.stdout %}
+                        <div class="scrollable">
+                            <pre><span class="status-negative">{{ failed_services.stdout }}</span></pre>
+                        </div>
+                    {% else %}
+                        None
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>System Error Logs</strong></td>
+                <td>
+                    {% if error_logs is defined and error_logs.stdout %}
+                        <div class="scrollable">
+                            <pre>{{ error_logs.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        None
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Kubernetes Metrics</h2>
+    <table>
+        <tbody>
+            <tr>
+                <td><strong>All Pods</strong></td>
+                <td>
+                    {% if all_pods is defined and all_pods.stdout %}
+                        <div class="scrollable">
+                            <pre>{{ all_pods.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Non-Running Pods</strong></td>
+                <td>
+                    {% if non_running_pods is defined and non_running_pods.stdout %}
+                        <div class="scrollable">
+                            <pre>{{ non_running_pods.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        None
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Pods with 0 Readiness</strong></td>
+                <td>
+                    {% if zero_ready_pods_fact is defined and zero_ready_pods_fact %}
+                        <div class="scrollable">
+                            <pre>{{ zero_ready_pods_fact }}</pre>
+                        </div>
+                    {% else %}
+                        None
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Warning Events</strong></td>
+                <td>
+                    {% if warnings is defined and warnings.stdout %}
+                        <div class="scrollable">
+                            <pre>{{ warnings.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        None
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Top Pods by CPU</strong></td>
+                <td>
+                    {% if top_pods_cpu_fact is defined and top_pods_cpu_fact %}
+                        <div class="scrollable">
+                            <pre>{{ top_pods_cpu_fact }}</pre>
+                        </div>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Top Nodes by CPU</strong></td>
+                <td>
+                    {% if top_nodes_cpu is defined and top_nodes_cpu.stdout %}
+                        <div class="scrollable">
+                            <pre>{{ top_nodes_cpu.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
