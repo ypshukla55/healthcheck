@@ -15,19 +15,8 @@
         report_timestamp: "{{ '%Y_%m_%d_%H_%M_%S' | strftime(ansible_date_time.epoch) }}"
       delegate_to: localhost
       run_once: true
-    
-    - name: Clean up old reports
-      file:
-        path: "{{ report_base_path }}/report_{{ item }}_*.html"
-        state: absent
-      with_items: "{{ ansible_play_hosts }}"
-      delegate_to: localhost
-      become: false
-      failed_when: false
-      run_once: true
-      register: cleanup_results
 
-    - name: Find and delete old reports
+    - name: Find old reports
       find:
         paths: "{{ report_base_path }}"
         patterns: "report_{{ item }}_*.html"
@@ -37,11 +26,11 @@
       run_once: true
       register: find_result
 
-    - name: Remove found old reports
+    - name: Remove old reports
       file:
         path: "{{ item.path }}"
         state: absent
-      with_items: "{{ find_result.results | json_query('[].files[]') }}"
+      loop: "{{ find_result.results | flatten | selectattr('files', 'defined') | map(attribute='files') | list | flatten }}"
       delegate_to: localhost
       become: false
       run_once: true
