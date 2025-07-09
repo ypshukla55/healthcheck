@@ -68,6 +68,14 @@
             margin: 0;
             font-family: monospace;
         }
+        /* Uniform column widths */
+        td:first-child, th:first-child {
+            width: 20%; /* Fixed width for the label column */
+            vertical-align: top;
+        }
+        td:last-child, th:last-child {
+            width: 80%; /* Fixed width for the value column */
+        }
     </style>
 </head>
 <body>
@@ -135,7 +143,7 @@
                     {% else %}
                         N/A
                     {% endif %}
-                </td SIX>
+                </td>
             </tr>
             <tr>
                 <td><strong>Failed Services</strong></td>
@@ -233,6 +241,25 @@
                     {% if top_nodes_cpu is defined and top_nodes_cpu.stdout %}
                         <div class="scrollable">
                             <pre>{{ top_nodes_cpu.stdout }}</pre>
+                        </div>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Logrotate Services</h2>
+    <table>
+        <tbody>
+            <tr>
+                <td><strong>Logrotate configured on</strong></td>
+                <td>
+                    {% if logrotate_services_fact is defined and logrotate_services_fact %}
+                        <div class="scrollable">
+                            <pre>{% for service in logrotate_services_fact %}{{ service }}
+{% endfor %}</pre>
                         </div>
                     {% else %}
                         N/A

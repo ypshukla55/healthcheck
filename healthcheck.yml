@@ -8,7 +8,44 @@
     mem_threshold: 170000
     load_threshold: 2.0
     email_to: "admin@example.com"
+    report_base_path: "/tmp/healthcheck_reports/"
   tasks:
+    - name: Set report timestamp in IST
+      set_fact:
+        report_timestamp: "{{ '%Y_%m_%d_%H_%M_%S' | strftime(ansible_date_time.epoch) }}"
+      delegate_to: localhost
+      run_once: true
+    
+    - name: Clean up old reports
+      file:
+        path: "{{ report_base_path }}/report_{{ item }}_*.html"
+        state: absent
+      with_items: "{{ ansible_play_hosts }}"
+      delegate_to: localhost
+      become: false
+      failed_when: false
+      run_once: true
+      register: cleanup_results
+
+    - name: Find and delete old reports
+      find:
+        paths: "{{ report_base_path }}"
+        patterns: "report_{{ item }}_*.html"
+      with_items: "{{ ansible_play_hosts }}"
+      delegate_to: localhost
+      become: false
+      run_once: true
+      register: find_result
+
+    - name: Remove found old reports
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ find_result.results | json_query('[].files[]') }}"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
     - name: Gather information from hosts
       block:
         - name: Collect disk usage
@@ -31,7 +68,7 @@
           changed_when: false
 
         - name: Get list of failed services
-          shell: "systemctl list-units --type=service --state=failed | grep -v -E 'LOAD|ACTIVE|SUB|loaded units listed'"
+          shell: "systemctl list-units --type=service --state=failed | grep -v -E 'LOAD|ACTIVE|SUB|loaded units listed' || true"
           register: failed_services
           changed_when: false
 
@@ -78,15 +115,46 @@
           register: top_nodes_cpu
           ignore_errors: true
 
+        - name: Get list of logrotate configured services
+          shell: |
+            for file in /etc/logrotate.d/*; do
+              if [ -f "$file" ]; then
+                basename "$file"
+              fi
+            done
+          register: logrotate_services
+          changed_when: false
+          ignore_errors: true
+
+        - name: Set logrotate services fact
+          set_fact:
+            logrotate_services_fact: "{{ logrotate_services.stdout_lines | default([]) }}"
+
       rescue:
         - name: Handle errors
           debug:
             msg: "An error occurred on {{ inventory_hostname }}"
+    
+    - name: Ensure logrotate service is enabled and running (RedHat)
+      systemd:
+        name: logrotate.timer
+        state: started
+        enabled: yes    
 
     - name: Generate report
       template:
         src: templates/report.html.j2
-        dest: "/tmp/report_{{ inventory_hostname }}_{{ ansible_date_time.iso8601 }}.html"
+        dest: "{{ report_base_path }}/report_{{ inventory_hostname }}_{{ report_timestamp }}.html"
         mode: "0600"
       delegate_to: localhost
       become: false
+      register: report_files
+    
+    - name: Create zip archive of all reports
+      archive:
+        path: "{{ report_base_path }}/report_*.html"
+        dest: "{{ report_base_path }}/healthcheck_reports_{{ report_timestamp }}.zip"
+        format: zip
+      delegate_to: localhost
+      become: false
+      run_once: true
