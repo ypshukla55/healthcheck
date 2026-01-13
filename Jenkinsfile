@@ -13,14 +13,12 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                // RUNS AS: jenkins (Ubuntu)
                 checkout scm
             }
         }
 
         stage('Prepare Vault Password') {
             steps {
-                // RUNS AS: jenkins (Ubuntu)
                 withCredentials([
                     string(credentialsId: 'ANSIBLE_VAULT_PASSWORD', variable: 'VAULT_PASS')
                 ]) {
@@ -32,22 +30,52 @@ pipeline {
             }
         }
 
-        stage('Deploy to Rocky VM') {
+        stage('Deploy to DEV') {
             steps {
-                // RUNS AS: jenkins (Ubuntu)
-                sh '''
-                  cd ansible
-                  ansible-playbook playbooks/deploy.yml \
-                    -i inventories/dev.yml \
-                    --vault-password-file ../.vault_pass
-                '''
+                sshagent(credentials: ['rocky_ssh_key']) {
+                    sh '''
+                      cd ansible
+                      ansible-playbook playbooks/deploy.yml \
+                        -i inventories/dev.yml \
+                        --vault-password-file ../.vault_pass
+                    '''
+                }
+            }
+        }
+
+        // Optional gates / promotions
+        stage('Deploy to UAT') {
+            when { branch 'main' }
+            steps {
+                sshagent(credentials: ['rocky_ssh_key']) {
+                    sh '''
+                      cd ansible
+                      ansible-playbook playbooks/deploy.yml \
+                        -i inventories/uat.yml \
+                        --vault-password-file ../.vault_pass
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to PROD') {
+            when { branch 'main' }
+            steps {
+                input message: 'Approve PROD deployment?'
+                sshagent(credentials: ['rocky_ssh_key']) {
+                    sh '''
+                      cd ansible
+                      ansible-playbook playbooks/deploy.yml \
+                        -i inventories/prod.yml \
+                        --vault-password-file ../.vault_pass
+                    '''
+                }
             }
         }
     }
 
     post {
         always {
-            // RUNS AS: jenkins (Ubuntu)
             sh 'rm -f .vault_pass'
         }
     }
