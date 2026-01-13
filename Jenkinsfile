@@ -7,6 +7,7 @@ pipeline {
 
     environment {
         VAULT_PASS_FILE = "${WORKSPACE}/.vault_pass"
+	SSH_AUTH_SOCK = ''
     }
 
     stages {
