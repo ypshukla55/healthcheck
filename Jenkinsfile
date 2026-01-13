@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    triggers {
+        githubPush()
+    }
+
     environment {
         VAULT_PASS_FILE = "${WORKSPACE}/.vault_pass"
     }
@@ -9,18 +13,20 @@ pipeline {
 
         stage('Checkout') {
             steps {
+                // RUNS AS: jenkins (Ubuntu)
                 checkout scm
             }
         }
 
         stage('Prepare Vault Password') {
             steps {
+                // RUNS AS: jenkins (Ubuntu)
                 withCredentials([
                     string(credentialsId: 'ANSIBLE_VAULT_PASSWORD', variable: 'VAULT_PASS')
                 ]) {
                     sh '''
-                        echo "$VAULT_PASS" > .vault_pass
-                        chmod 600 .vault_pass
+                      echo "$VAULT_PASS" > .vault_pass
+                      chmod 600 .vault_pass
                     '''
                 }
             }
@@ -28,20 +34,20 @@ pipeline {
 
         stage('Deploy to Rocky VM') {
             steps {
-                sshagent(credentials: ['rocky_ssh_key']) {
-                    sh '''
-                        cd ansible
-                        ansible-playbook playbooks/deploy.yml \
-                          -i inventories/dev.ini \
-                          --vault-password-file ../.vault_pass
-                    '''
-                }
+                // RUNS AS: jenkins (Ubuntu)
+                sh '''
+                  cd ansible
+                  ansible-playbook playbooks/deploy.yml \
+                    -i inventories/dev.ini \
+                    --vault-password-file ../.vault_pass
+                '''
             }
         }
     }
 
     post {
         always {
+            // RUNS AS: jenkins (Ubuntu)
             sh 'rm -f .vault_pass'
         }
     }
