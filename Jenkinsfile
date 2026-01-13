@@ -38,7 +38,7 @@ pipeline {
                 sh '''
                   cd ansible
                   ansible-playbook playbooks/deploy.yml \
-                    -i inventories/dev.ini \
+                    -i inventories/dev.yml \
                     --vault-password-file ../.vault_pass
                 '''
             }
