@@ -7,7 +7,6 @@ pipeline {
     }
 
     triggers {
-        // Jenkins polls GitHub every 2 minutes for changes
         pollSCM('H/2 * * * *')
     }
 
@@ -20,9 +19,6 @@ pipeline {
         }
 
         stage('Deploy to Dev') {
-            when {
-                branch 'main'
-            }
             steps {
                 sshagent(credentials: ['rocky_ssh_key']) {
                     sh '''
