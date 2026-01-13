@@ -1,12 +1,14 @@
 pipeline {
     agent any
 
-    triggers {
-        githubPush()
+    options {
+        disableConcurrentBuilds()
+        timestamps()
     }
 
-    environment {
-        VAULT_PASS_FILE = "${WORKSPACE}/.vault_pass"
+    triggers {
+        // Jenkins polls GitHub every 2 minutes for changes
+        pollSCM('H/2 * * * *')
     }
 
     stages {
@@ -17,57 +19,16 @@ pipeline {
             }
         }
 
-        stage('Prepare Vault Password') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'ANSIBLE_VAULT_PASSWORD', variable: 'VAULT_PASS')
-                ]) {
-                    sh '''
-                      echo "$VAULT_PASS" > .vault_pass
-                      chmod 600 .vault_pass
-                    '''
-                }
+        stage('Deploy to Dev') {
+            when {
+                branch 'main'
             }
-        }
-
-        stage('Deploy to DEV') {
             steps {
                 sshagent(credentials: ['rocky_ssh_key']) {
                     sh '''
-                      cd ansible
-                      ansible-playbook playbooks/deploy.yml \
-                        -i inventories/dev.yml \
-                        --vault-password-file ../.vault_pass
-                    '''
-                }
-            }
-        }
-
-        // Optional gates / promotions
-        stage('Deploy to UAT') {
-            when { branch 'main' }
-            steps {
-                sshagent(credentials: ['rocky_ssh_key']) {
-                    sh '''
-                      cd ansible
-                      ansible-playbook playbooks/deploy.yml \
-                        -i inventories/uat.yml \
-                        --vault-password-file ../.vault_pass
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to PROD') {
-            when { branch 'main' }
-            steps {
-                input message: 'Approve PROD deployment?'
-                sshagent(credentials: ['rocky_ssh_key']) {
-                    sh '''
-                      cd ansible
-                      ansible-playbook playbooks/deploy.yml \
-                        -i inventories/prod.yml \
-                        --vault-password-file ../.vault_pass
+                        cd ansible
+                        ansible-playbook playbooks/deploy.yml \
+                          -i inventories/dev.yml
                     '''
                 }
             }
@@ -75,8 +36,14 @@ pipeline {
     }
 
     post {
+        success {
+            echo 'Deployment completed successfully'
+        }
+        failure {
+            echo 'Deployment failed'
+        }
         always {
-            sh 'rm -f .vault_pass'
+            cleanWs()
         }
     }
 }
