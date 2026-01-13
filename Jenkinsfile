@@ -36,15 +36,16 @@ pipeline {
         stage('Deploy to Rocky VM') {
             steps {
                 // RUNS AS: jenkins (Ubuntu)
-                sh '''
-                  cd ansible
-                  ansible-playbook playbooks/deploy.yml \
-                    -i inventories/dev.ini \
-                    --vault-password-file ../.vault_pass
-                '''
+		sshagent(credentials: ['rocky_ssh_key']) {
+                	sh '''
+                  	  cd ansible
+                  	  ansible-playbook playbooks/deploy.yml \
+                    		-i inventories/dev.ini \
+                    		--vault-password-file ../.vault_pass
+                	'''
+            	}
             }
-        }
-    }
+    	}
 
     post {
         always {
