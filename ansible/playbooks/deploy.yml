@@ -1,11 +1,52 @@
+---
 - name: Deploy healthcheck to Rocky VM
   hosts: all
-  become: false
-  tasks:
-    - name: Update repository
-      git:
-        repo: https://github.com/ypshukla55/healthcheck.git
-        dest: /opt/healthcheck
-        version: main
-        force: true
+  gather_facts: false
+  become: true
 
+  vars:
+    app_dir: /opt/healthcheck
+    repo_url: https://github.com/ypshukla55/healthcheck.git
+    repo_branch: main
+    app_user: rocky
+    app_group: rocky
+
+  pre_tasks:
+    - name: Ensure git is installed
+      package:
+        name: git
+        state: present
+    
+    - name: Ensure application directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+  
+  tasks:
+    - name: Pull latest code from Git
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ repo_branch }}"
+        update: yes
+        force: yes
+      become_user: "{{ app_user }}"
+    
+    - name: Show deployed commit
+      command: git rev-parse --short HEAD
+      args:
+        chdir: "{{ app_dir }}"
+      register: git_commit
+      changed_when: false
+
+    - name: Deployment summary
+      debug:
+        msg: "Host {{ inventory_hostname }} running commit {{ git_commit.stdout }}"
+  
+  post_tasks:
+    - name: Deployment finished
+      debug:
+        msg: "Deployment completed on {{ inventory_hostname }}"
