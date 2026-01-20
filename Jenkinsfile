@@ -24,7 +24,7 @@ pipeline {
                 cd ansible
 
                 # prepare key BEFORE ansible-playbook starts
-                cp files/test_ansible_key /tmp/ansible_test_key
+                cp files/ansible_test_key /tmp/ansible_test_key
                 chmod 600 /tmp/ansible_test_key
 
                 ansible-playbook playbooks/deploy.yml \
