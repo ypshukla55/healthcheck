@@ -1,7 +1,7 @@
 ---
 - name: Deploy healthcheck to Rocky VM
   hosts: all
-  gather_facts: false
+  gather_facts: yes
   become: true
 
   vars:
