@@ -1,24 +1,32 @@
 ---
-- name: Deploy healthcheck to target servers
+- name: Deploy healthcheck via git
   hosts: all
-  become: true
-  gather_facts: true
+  become: yes
+
+  vars:
+    app_dir: /opt/healthcheck
+    repo_url: git@github.com:ypshukla55/healthcheck.git
+    repo_branch: main
 
   tasks:
+    - name: Ensure git is installed
+      package:
+        name: git
+        state: present
+
     - name: Ensure app directory exists
       file:
-        path: /opt/healthcheck
+        path: "{{ app_dir }}"
         state: directory
         owner: rocky
         group: rocky
         mode: '0755'
 
-    - name: Sync repository content
-      synchronize:
-        src: "{{ playbook_dir }}/../../"
-        dest: /opt/healthcheck
-        delete: yes
-        rsync_opts:
-          - "--exclude=.git"
-          - "--exclude=ansible/secrets"
-          - "--exclude=ansible/files/*.vault"
+    - name: Clone or update repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ repo_branch }}"
+        accept_hostkey: yes
+        force: yes
+      become_user: rocky
