@@ -4,26 +4,8 @@
 
   vars:
     ansible_user: rocky
-    ansible_ssh_private_key_file: "/tmp/ansible_test_key"
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-
-  pre_tasks:
-    - name: Prepare SSH key locally
-      delegate_to: localhost
-      run_once: true
-      copy:
-        src: "{{ playbook_dir }}/../files/ansible_test_key"
-        dest: "/tmp/ansible_test_key"
-        mode: '0600'
 
   tasks:
     - name: Test connectivity
       ping:
-
-  post_tasks:
-    - name: Cleanup SSH key locally
-      delegate_to: localhost
-      run_once: true
-      file:
-        path: "/tmp/ansible_test_key"
-        state: absent

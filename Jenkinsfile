@@ -21,9 +21,17 @@ pipeline {
         stage('Deploy to Dev') {
             steps {
                 sh '''
-                    cd ansible
-                    ansible-playbook playbooks/deploy.yml \
-                        -i inventories/dev.yml
+                cd ansible
+
+                # prepare key BEFORE ansible-playbook starts
+                cp files/test_ansible_key /tmp/ansible_test_key
+                chmod 600 /tmp/ansible_test_key
+
+                ansible-playbook playbooks/deploy.yml \
+                    -i inventories/dev.yml \
+                    --private-key /tmp/ansible_test_key
+
+                rm -f /tmp/ansible_test_key
                 '''
             }
         }
