@@ -12,6 +12,16 @@
     app_group: rocky
 
   pre_tasks:
+    - name: Copy SSH key to temp location with secure permissions
+      copy:
+        src: "{{ playbook_dir }}/../files/deploy_key"
+        dest: /tmp/deploy_key
+        mode: '0600'
+      
+    - name: Use temp ssh key for this run
+      set_fact:
+        ansible_ssh_private_key_file: "/tmp/deploy_key"
+
     - name: Ensure git is installed
       package:
         name: git
@@ -47,6 +57,11 @@
         msg: "Host {{ inventory_hostname }} running commit {{ git_commit.stdout }}"
   
   post_tasks:
+    - name: Remove temp ssh key
+      file:
+        path: "/tmp/deploy_key"
+        state: absent
+        
     - name: Deployment finished
       debug:
         msg: "Deployment completed on {{ inventory_hostname }}"
