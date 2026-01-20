@@ -20,21 +20,13 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Decrypt SSH Key') {
             steps {
                 sh '''
                   cd ansible
-
                   ansible-vault decrypt files/deploy_key.vault \
                     --vault-password-file secrets/vault-pass \
                     --output files/deploy_key
-
                   chmod 600 files/deploy_key
                 '''
             }
@@ -44,7 +36,6 @@ pipeline {
             steps {
                 sh '''
                   cd ansible
-
                   ansible-playbook playbooks/deploy.yml \
                     -i inventories/${TARGET_ENV}.yml \
                     --private-key files/deploy_key
@@ -59,12 +50,6 @@ pipeline {
               rm -f ansible/files/deploy_key
             '''
             cleanWs()
-        }
-        success {
-            echo "Deployment to ${params.TARGET_ENV} completed successfully"
-        }
-        failure {
-            echo "Deployment to ${params.TARGET_ENV} failed"
         }
     }
 }
