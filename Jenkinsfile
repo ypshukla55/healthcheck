@@ -6,8 +6,16 @@ pipeline {
         timestamps()
     }
 
+    parameters {
+        choice(
+            name: 'TARGET_ENV',
+            choices: ['dev', 'uat', 'prod'],
+            description: 'Target environment'
+        )
+    }
+
     triggers {
-        pollSCM('H/2 * * * *')
+        pollSCM('H/5 * * * *')
     }
 
     stages {
@@ -18,35 +26,44 @@ pipeline {
             }
         }
 
-        stage('Deploy to Dev') {
+        stage('Decrypt SSH Key') {
             steps {
                 sh '''
-                cd ansible
+                  cd ansible
 
-                # prepare key BEFORE ansible-playbook starts
-                cp files/ansible_test_key /tmp/ansible_test_key
-                chmod 600 /tmp/ansible_test_key
+                  ansible-vault decrypt files/deploy_key.vault \
+                    --vault-password-file secrets/vault-pass
 
-                ansible-playbook playbooks/deploy.yml \
-                    -i inventories/dev.yml \
-                    --private-key /tmp/ansible_test_key
+                  chmod 600 files/deploy_key
+                '''
+            }
+        }
 
-                rm -f /tmp/ansible_test_key
+        stage('Deploy') {
+            steps {
+                sh '''
+                  cd ansible
+
+                  ansible-playbook playbooks/deploy.yml \
+                    -i inventories/${TARGET_ENV}.yml \
+                    --private-key files/deploy_key
                 '''
             }
         }
     }
 
     post {
+        always {
+            sh '''
+              rm -f ansible/files/deploy_key
+            '''
+            cleanWs()
+        }
         success {
-            echo 'Deployment completed successfully'
+            echo "Deployment to ${params.TARGET_ENV} completed successfully"
         }
         failure {
-            echo 'Deployment failed'
-        }
-        always {
-            cleanWs()
+            echo "Deployment to ${params.TARGET_ENV} failed"
         }
     }
 }
-

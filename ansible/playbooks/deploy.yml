@@ -1,11 +1,24 @@
-- name: Deploy healthcheck to Rocky VM
+---
+- name: Deploy healthcheck to target servers
   hosts: all
-  gather_facts: yes
-
-  vars:
-    ansible_user: rocky
-    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+  become: true
+  gather_facts: true
 
   tasks:
-    - name: Test connectivity
-      ping:
+    - name: Ensure app directory exists
+      file:
+        path: /opt/healthcheck
+        state: directory
+        owner: rocky
+        group: rocky
+        mode: '0755'
+
+    - name: Sync repository content
+      synchronize:
+        src: "{{ playbook_dir }}/../../"
+        dest: /opt/healthcheck
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=ansible/secrets"
+          - "--exclude=ansible/files/*.vault"
