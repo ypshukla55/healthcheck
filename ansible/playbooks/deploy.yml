@@ -1,67 +1,29 @@
----
 - name: Deploy healthcheck to Rocky VM
   hosts: all
   gather_facts: yes
-  become: true
 
   vars:
-    app_dir: /opt/healthcheck
-    repo_url: https://github.com/ypshukla55/healthcheck.git
-    repo_branch: main
-    app_user: rocky
-    app_group: rocky
+    ansible_user: rocky
+    ansible_ssh_private_key_file: "/tmp/ansible_test_key"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
   pre_tasks:
-    - name: Copy SSH key to temp location with secure permissions
+    - name: Prepare SSH key locally
+      delegate_to: localhost
+      run_once: true
       copy:
-        src: "{{ playbook_dir }}/../files/deploy_key"
-        dest: /tmp/deploy_key
+        src: "{{ playbook_dir }}/../files/test_ansible_key"
+        dest: "/tmp/ansible_test_key"
         mode: '0600'
-      
-    - name: Use temp ssh key for this run
-      set_fact:
-        ansible_ssh_private_key_file: "/tmp/deploy_key"
 
-    - name: Ensure git is installed
-      package:
-        name: git
-        state: present
-    
-    - name: Ensure application directory exists
-      file:
-        path: "{{ app_dir }}"
-        state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_group }}"
-        mode: '0755'
-  
   tasks:
-    - name: Pull latest code from Git
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ repo_branch }}"
-        update: yes
-        force: yes
-      become_user: "{{ app_user }}"
-    
-    - name: Show deployed commit
-      command: git rev-parse --short HEAD
-      args:
-        chdir: "{{ app_dir }}"
-      register: git_commit
-      changed_when: false
+    - name: Test connectivity
+      ping:
 
-    - name: Deployment summary
-      debug:
-        msg: "Host {{ inventory_hostname }} running commit {{ git_commit.stdout }}"
-  
   post_tasks:
-    - name: Remove temp ssh key
+    - name: Cleanup SSH key locally
+      delegate_to: localhost
+      run_once: true
       file:
-        path: "/tmp/deploy_key"
+        path: "/tmp/ansible_test_key"
         state: absent
-        
-    - name: Deployment finished
-      debug:
-        msg: "Deployment completed on {{ inventory_hostname }}"
