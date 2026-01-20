@@ -20,13 +20,11 @@ pipeline {
 
         stage('Deploy to Dev') {
             steps {
-                sshagent(credentials: ['rocky_ssh_key']) {
-                    sh '''
-                        cd ansible
-                        ansible-playbook playbooks/deploy.yml \
-                          -i inventories/dev.yml
-                    '''
-                }
+                sh '''
+                    cd ansible
+                    ansible-playbook playbooks/deploy.yml \
+                        -i inventories/dev.yml
+                '''
             }
         }
     }
