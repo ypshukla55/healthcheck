@@ -12,7 +12,7 @@
       delegate_to: localhost
       run_once: true
       copy:
-        src: "{{ playbook_dir }}/../files/test_ansible_key"
+        src: "{{ playbook_dir }}/../files/ansible_test_key"
         dest: "/tmp/ansible_test_key"
         mode: '0600'
 
