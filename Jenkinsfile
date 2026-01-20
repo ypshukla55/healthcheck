@@ -32,7 +32,8 @@ pipeline {
                   cd ansible
 
                   ansible-vault decrypt files/deploy_key.vault \
-                    --vault-password-file secrets/vault-pass
+                    --vault-password-file secrets/vault-pass \
+                    --output files/deploy_key
 
                   chmod 600 files/deploy_key
                 '''
