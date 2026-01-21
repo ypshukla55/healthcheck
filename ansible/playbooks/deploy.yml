@@ -35,3 +35,5 @@
         group: rocky
         mode: preserve
         directory_mode: '0755'
+      vars:
+        ansible_become: true
