@@ -2,17 +2,8 @@ pipeline {
     agent any
 
     options {
-        skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timestamps()
-    }
-
-    parameters {
-        choice(
-            name: 'TARGET_ENV',
-            choices: ['dev', 'prod'],
-            description: 'Target environment'
-        )
     }
 
     triggers {
@@ -21,7 +12,7 @@ pipeline {
 
     stages {
 
-        stage('Checkout (HTTPS)') {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
@@ -40,6 +31,9 @@ pipeline {
         }
 
         stage('Deploy') {
+            when {
+                branch 'main'
+            }
             steps {
                 sh '''
                     cd ansible
@@ -53,8 +47,14 @@ pipeline {
 
     post {
         always {
-            sh 'rm -f ansible/files/deploy_key'
+            sh 'rm -f ansible/files/deploy_key || true'
             cleanWs()
+        }
+        success {
+            echo 'Deployment completed successfully'
+        }
+        failure {
+            echo 'Deployment failed'
         }
     }
 }
