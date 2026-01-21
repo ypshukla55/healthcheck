@@ -31,14 +31,11 @@ pipeline {
         }
 
         stage('Deploy') {
-            when {
-                branch 'main'
-            }
             steps {
                 sh '''
                     cd ansible
                     ansible-playbook playbooks/deploy.yml \
-                      -i inventories/${TARGET_ENV}.yml \
+                      -i inventories/dev.yml \
                       --private-key files/deploy_key
                 '''
             }
