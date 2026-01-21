@@ -27,13 +27,18 @@
     #     force: true
     #   become_user: rocky
 
-    - name: Copy application files
-      ansible.builtin.copy:
-        src: "{{ src_dir }}"
-        dest: "{{ app_dir }}"
+    - name: Copy application files (exclude ansible secrets)
+      ansible.posix.synchronize:
+        src: "{{ src_dir }}/"
+        dest: "{{ app_dir }}/"
+        recursive: true
+        rsync_opts:
+          - "--exclude=ansible/secrets/"
+      delegate_to: localhost
+
+    - name: Ensure correct ownership on app dir
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
         owner: rocky
         group: rocky
-        mode: preserve
-        directory_mode: '0755'
-      vars:
-        ansible_become: true
+        recurse: true
