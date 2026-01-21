@@ -1,32 +1,37 @@
 ---
 - name: Deploy healthcheck via git
   hosts: all
-  become: yes
+  become: true
 
   vars:
     app_dir: /opt/healthcheck
-    repo_url: git@github.com:ypshukla55/healthcheck.git
-    repo_branch: main
+    src_dir: "{{ playbook_dir }}/../../"
+    # repo_url: git@github.com:ypshukla55/healthcheck.git
+    # repo_branch: main
 
   tasks:
-    - name: Ensure git is installed
-      package:
-        name: git
-        state: present
-
     - name: Ensure app directory exists
-      file:
+      ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
         owner: rocky
         group: rocky
         mode: '0755'
 
-    - name: Clone or update repository
-      git:
-        repo: "{{ repo_url }}"
+    # - name: Clone or update repository
+    #   ansible.builtin.git:
+    #     repo: "{{ repo_url }}"
+    #     dest: "{{ app_dir }}"
+    #     version: "{{ repo_branch }}"
+    #     accept_hostkey: true
+    #     force: true
+    #   become_user: rocky
+
+    - name: Copy application files
+      ansible.builtin.copy:
+        src: "{{ src_dir }}"
         dest: "{{ app_dir }}"
-        version: "{{ repo_branch }}"
-        accept_hostkey: yes
-        force: yes
-      become_user: rocky
+        owner: rocky
+        group: rocky
+        mode: preserve
+        directory_mode: '0755'

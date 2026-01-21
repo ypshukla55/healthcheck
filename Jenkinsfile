@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     options {
+        skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timestamps()
     }
@@ -15,19 +16,25 @@ pipeline {
     }
 
     triggers {
-        pollSCM('H/5 * * * *')
+        pollSCM('H/2 * * * *')
     }
 
     stages {
 
+        stage('Checkout (HTTPS)') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Decrypt SSH Key') {
             steps {
                 sh '''
-                  cd ansible
-                  ansible-vault decrypt files/deploy_key.vault \
-                    --vault-password-file secrets/vault-pass \
-                    --output files/deploy_key
-                  chmod 600 files/deploy_key
+                    cd ansible
+                    ansible-vault decrypt files/deploy_key.vault \
+                      --vault-password-file secrets/vault-pass \
+                      --output files/deploy_key
+                    chmod 600 files/deploy_key
                 '''
             }
         }
@@ -35,10 +42,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                  cd ansible
-                  ansible-playbook playbooks/deploy.yml \
-                    -i inventories/${TARGET_ENV}.yml \
-                    --private-key files/deploy_key
+                    cd ansible
+                    ansible-playbook playbooks/deploy.yml \
+                      -i inventories/${TARGET_ENV}.yml \
+                      --private-key files/deploy_key
                 '''
             }
         }
@@ -46,9 +53,7 @@ pipeline {
 
     post {
         always {
-            sh '''
-              rm -f ansible/files/deploy_key
-            '''
+            sh 'rm -f ansible/files/deploy_key'
             cleanWs()
         }
     }
