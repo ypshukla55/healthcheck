@@ -35,6 +35,7 @@
         rsync_opts:
           - "--exclude=ansible/secrets/"
       delegate_to: localhost
+      become: false
 
     - name: Ensure correct ownership on app dir
       ansible.builtin.file:
