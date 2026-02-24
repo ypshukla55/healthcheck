@@ -199,9 +199,10 @@
             <tr>
                 <td><strong>Running Services</strong></td>
                 <td>
-                    {% if running_services is defined and running_services.stdout %}
+                    {% if running_services_list is defined and running_services_list %}
                         <div class="scrollable">
-                            <pre><span class="status-positive">{{ running_services.stdout }}</span></pre>
+                            <pre>{% for service in running_services_list %}<span class="status-positive">{{ service.key }}</span>
+{% endfor %}</pre>
                         </div>
                     {% else %}
                         N/A
@@ -211,9 +212,10 @@
             <tr>
                 <td><strong>Failed Services</strong></td>
                 <td>
-                    {% if failed_services is defined and failed_services.stdout %}
+                    {% if failed_services_list is defined and failed_services_list %}
                         <div class="scrollable">
-                            <pre><span class="status-negative">{{ failed_services.stdout }}</span></pre>
+                            <pre>{% for service in failed_services_list %}<span class="status-negative">{{ service.key }}</span>
+{% endfor %}</pre>
                         </div>
                     {% else %}
                         None
