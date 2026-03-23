@@ -55,30 +55,29 @@ pipeline {
         }
 
         stage('Fetch Credentials from Vault') {
-
             steps {
-
                 withVault(
+                    configuration: [
+                        vaultUrl: "${env.VAULT_URL}",
+                        // Wrap these in the configuration block
+                        roleId: "${env.VAULT_ROLE_ID}",
+                        secretId: credentials('94772171-18b8-acbd-666e-ba4ad7adf502'),
+                        engineVersion: 2
+                    ],
                     vaultSecrets: [[
-                        path: "${VAULT_SECRET_PATH}",
+                        // For KV-V2, Vault expects 'data' in the path: secret/data/...
+                        path: "secret/data/jenkins/dev", 
                         secretValues: [
                             [envVar: 'DEPLOY_USER', vaultKey: 'username'],
                             [envVar: 'DEPLOY_PASSWORD', vaultKey: 'password']
                         ]
-                    ]],
-                    vaultUrl: "${VAULT_URL}",
-                    roleId: "${VAULT_ROLE_ID}",
-                    secretId: credentials('vault-approle-secretid'),
-                    engineVersion: 2
+                    ]]
                 ) {
-
                     script {
-
                         if (!env.DEPLOY_USER || !env.DEPLOY_PASSWORD) {
-                            error("Vault credentials not retrieved.")
+                            error("Vault credentials not retrieved. Check if path 'secret/jenkins/dev' exists.")
                         }
-
-                        echo "Vault credentials retrieved."
+                        echo "Vault credentials retrieved successfully."
                     }
                 }
             }
