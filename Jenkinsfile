@@ -1,68 +1,121 @@
 pipeline {
     agent any
 
-    // Triggers the build when a PR is merged into the 'main' branch
-    triggers {
-        githubPullRequests(
-            spec: 'H/5 * * * *',
-            triggerMode: 'HEAVY_DUTY_SYNCING',
-            events: [ [ $class: 'GitHubPRMergedEvent' ] ]
-        )
+    parameters {
+        string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to deploy')
+        choice(name: 'ENVIRONMENT', choices: ['DEV','PROD'], description: 'Select deployment environment')
     }
 
     environment {
-        VAULT_URL = 'http://localhost:8200'
-        // The path from your screenshot
-        VAULT_PATH = 'secret/data/jenkins/dev'
+        // Git
+        GIT_REPO = 'https://github.com/ypshukla55/healthcheck.git'
+        // GIT_CREDENTIALS_ID = 'git-ssh-creds'
+
+        // Default values (overwritten later)
+        VAULT_URL = 'http://localhost:8200/'
+        VAULT_ROLE_ID = '34d225f8-6067-c74c-f3d9-b4bac3619e44'
+        VAULT_SECRET_PATH = 'secret/jenkins/dev'
+        TARGET_SERVER = '192.168.1.105'
+        DEPLOY_DIR = '/apps/project'
     }
 
     stages {
-        stage('Fetch Secrets from Vault') {
+
+        stage('Set Environment Config') {
             steps {
-                // withVault bridges Jenkins with your local Vault instance
+                script {
+
+                    if (params.ENVIRONMENT == "DEV") {
+
+                        env.VAULT_URL = "http://localhost:8200/"
+                        env.VAULT_ROLE_ID = "34d225f8-6067-c74c-f3d9-b4bac3619e44"
+                        env.VAULT_SECRET_PATH = "secret/jenkins/dev"
+                        env.TARGET_SERVER = "192.168.1.105"
+
+                    } else {
+
+                        env.VAULT_URL = "https://vault.company.com:8200"
+                        env.VAULT_ROLE_ID = "PROD_ROLE_ID"
+                        env.VAULT_SECRET_PATH = "kv/project/prod/app"
+                        env.TARGET_SERVER = "prod-server.company.com"
+
+                    }
+
+                    echo "Deploying to ${params.ENVIRONMENT}"
+                }
+            }
+        }
+
+        stage('Checkout Code') {
+            steps {
+                git branch: "${params.BRANCH}",
+                    // credentialsId: "${GIT_CREDENTIALS_ID}",
+                    url: "${GIT_REPO}"
+            }
+        }
+
+        stage('Fetch Credentials from Vault') {
+
+            steps {
+
                 withVault(
-                    configuration: [
-                        vaultUrl: "${env.VAULT_URL}",
-                        vaultCredentialId: 'vault-token-id', // ID of the credential you created in Jenkins
-                        engineVersion: 2
-                    ],
                     vaultSecrets: [[
-                        path: "${env.VAULT_PATH}",
+                        path: "${VAULT_SECRET_PATH}",
                         secretValues: [
-                            [envVar: 'MY_USER', vaultKey: 'username'],
-                            [envVar: 'MY_PASS', vaultKey: 'password']
+                            [envVar: 'DEPLOY_USER', vaultKey: 'username'],
+                            [envVar: 'DEPLOY_PASSWORD', vaultKey: 'password']
                         ]
-                    ]]
+                    ]],
+                    vaultUrl: "${VAULT_URL}",
+                    roleId: "${VAULT_ROLE_ID}",
+                    secretId: credentials('vault-approle-secretid'),
+                    engineVersion: 2
                 ) {
+
                     script {
-                        echo "Successfully retrieved username: ${env.MY_USER}"
-                        // Password is automatically masked by Jenkins (****)
+
+                        if (!env.DEPLOY_USER || !env.DEPLOY_PASSWORD) {
+                            error("Vault credentials not retrieved.")
+                        }
+
+                        echo "Vault credentials retrieved."
                     }
                 }
             }
         }
 
-        stage('Pull Latest Code') {
-            steps {
-                // Pulls the latest code from the branch that was just merged
-                git branch: 'main', 
-                    url: 'https://github.com/ypshukla55/healthcheck'
-                
-                echo "Latest code pulled successfully."
-            }
-        }
+        stage('Deploy Application') {
 
-        stage('Deploy/Build') {
             steps {
-                sh "echo 'Running build using user: ${env.MY_USER}'"
-                // Add your build or deployment commands here
+
+                sh """
+
+                echo "Deploying branch ${params.BRANCH} to ${TARGET_SERVER}"
+
+                sshpass -p '${DEPLOY_PASSWORD}' ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${TARGET_SERVER} "mkdir -p ${DEPLOY_DIR}"
+
+                sshpass -p '${DEPLOY_PASSWORD}' scp -r * ${DEPLOY_USER}@${TARGET_SERVER}:${DEPLOY_DIR}/
+
+                sshpass -p '${DEPLOY_PASSWORD}' ssh ${DEPLOY_USER}@${TARGET_SERVER} "chmod -R 775 ${DEPLOY_DIR}"
+
+                """
+
             }
         }
     }
 
     post {
+
         always {
-            cleanWs() // Cleanup workspace to remove any sensitive traces
+            cleanWs()
+        }
+
+        success {
+            echo "Deployment Successful"
+        }
+
+        failure {
+            echo "Deployment Failed"
         }
     }
 }
