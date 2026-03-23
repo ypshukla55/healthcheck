@@ -1,57 +1,68 @@
 pipeline {
     agent any
 
-    options {
-        disableConcurrentBuilds()
-        timestamps()
+    // Triggers the build when a PR is merged into the 'main' branch
+    triggers {
+        githubPullRequests(
+            spec: 'H/5 * * * *',
+            triggerMode: 'HEAVY_DUTY_SYNCING',
+            events: [ [ $class: 'GitHubPRMergedEvent' ] ]
+        )
     }
 
-    triggers {
-        pollSCM('H/2 * * * *')
+    environment {
+        VAULT_URL = 'http://localhost:8200'
+        // The path from your screenshot
+        VAULT_PATH = 'secret/data/jenkins/dev'
     }
 
     stages {
-
-        stage('Checkout') {
+        stage('Fetch Secrets from Vault') {
             steps {
-                checkout scm
+                // withVault bridges Jenkins with your local Vault instance
+                withVault(
+                    configuration: [
+                        vaultUrl: "${env.VAULT_URL}",
+                        vaultCredentialId: 'vault-token-id', // ID of the credential you created in Jenkins
+                        engineVersion: 2
+                    ],
+                    vaultSecrets: [[
+                        path: "${env.VAULT_PATH}",
+                        secretValues: [
+                            [envVar: 'MY_USER', vaultKey: 'username'],
+                            [envVar: 'MY_PASS', vaultKey: 'password']
+                        ]
+                    ]]
+                ) {
+                    script {
+                        echo "Successfully retrieved username: ${env.MY_USER}"
+                        // Password is automatically masked by Jenkins (****)
+                    }
+                }
             }
         }
 
-        stage('Decrypt SSH Key') {
+        stage('Pull Latest Code') {
             steps {
-                sh '''
-                    cd ansible
-                    ansible-vault decrypt files/deploy_key.vault \
-                      --vault-password-file secrets/vault-pass \
-                      --output files/deploy_key
-                    chmod 600 files/deploy_key
-                '''
+                // Pulls the latest code from the branch that was just merged
+                git branch: 'main', 
+                    url: 'https://github.com/ypshukla55/healthcheck'
+                
+                echo "Latest code pulled successfully."
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy/Build') {
             steps {
-                sh '''
-                    cd ansible
-                    ansible-playbook playbooks/deploy.yml \
-                      -i inventories/dev.yml \
-                      --private-key files/deploy_key
-                '''
+                sh "echo 'Running build using user: ${env.MY_USER}'"
+                // Add your build or deployment commands here
             }
         }
     }
 
     post {
         always {
-            sh 'rm -f ansible/files/deploy_key || true'
-            cleanWs()
-        }
-        success {
-            echo 'Deployment completed successfully'
-        }
-        failure {
-            echo 'Deployment failed'
+            cleanWs() // Cleanup workspace to remove any sensitive traces
         }
     }
 }
