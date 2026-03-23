@@ -12,7 +12,7 @@ pipeline {
         // GIT_CREDENTIALS_ID = 'git-ssh-creds'
 
         // Default values (overwritten later)
-        VAULT_URL = 'http://localhost:8200/'
+        VAULT_URL = 'http://127.0.0.1:8200'
         VAULT_ROLE_ID = '34d225f8-6067-c74c-f3d9-b4bac3619e44'
         VAULT_SECRET_PATH = 'secret/jenkins/dev'
         TARGET_SERVER = '192.168.1.105'
@@ -27,7 +27,7 @@ pipeline {
 
                     if (params.ENVIRONMENT == "DEV") {
 
-                        env.VAULT_URL = "http://localhost:8200/"
+                        env.VAULT_URL = "http://127.0.0.1:8200"
                         env.VAULT_ROLE_ID = "34d225f8-6067-c74c-f3d9-b4bac3619e44"
                         env.VAULT_SECRET_PATH = "secret/jenkins/dev"
                         env.TARGET_SERVER = "192.168.1.105"
